@@ -51,14 +51,14 @@ fn main() {
 
         let proc_ent = match get_proc_ent(&entry.path()) {
             None => continue,
-            Some(s) => p,
+            Some(p) => p,
         };
 
         let proc_ent = Rc::new(proc_ent);
 
         proc_hash.entry(proc_ent.stack.clone())
-            .and_modify(|v| v.push(proc_ent.clone()))
-            .or_insert(vec![proc_ent.clone()]);
+            .and_modify(|v| v.push(Rc::clone(&proc_ent)))
+            .or_insert(vec![Rc::clone(&proc_ent)]);
     }
 
     let mut proc_vec: Vec<_> = proc_hash.iter().collect();
