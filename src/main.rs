@@ -96,6 +96,40 @@ fn get_proc_ent(options: &Options, path: &path::Path) -> Option<ProcEntry> {
     Some(ProcEntry { pid, comm, stack })
 }
 
+fn display_proc_names(procs: &[Rc<ProcEntry>]) -> String {
+    let mut pid_hash: HashMap<String, Vec<usize>> = HashMap::new();
+
+    for proc in procs.iter() {
+        pid_hash
+            .entry(proc.comm.clone())
+            .and_modify(|v| v.push(proc.pid))
+            .or_insert(vec![proc.pid]);
+    }
+
+    let mut names_vec: Vec<_> = pid_hash.iter().collect();
+    names_vec.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+
+    let mut s: String = "".to_string();
+    for name in names_vec.iter() {
+        s.push_str(&format!("({} ", name.0.trim()));
+        s.push_str(&format!("{:?}", name.1));
+        s.push_str("), ");
+    }
+
+    s
+}
+
+fn display(p: &HashMap<String, Vec<Rc<ProcEntry>>>) {
+    let mut proc_vec: Vec<_> = p.iter().collect();
+    proc_vec.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+
+    for (stack, procs) in proc_vec {
+        println!("{}", procs.len());
+        println!("{}", display_proc_names(procs));
+        println!("\n{}", stack);
+    }
+}
+
 fn main() {
     let proc_path = path::Path::new("/proc");
 
@@ -120,14 +154,5 @@ fn main() {
             .or_insert(vec![Rc::clone(&proc_ent)]);
     }
 
-    let mut proc_vec: Vec<_> = proc_hash.iter().collect();
-    proc_vec.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
-
-    for (stack, procs) in proc_vec {
-        println!("{}", procs.len());
-        for p in procs {
-            print!("{} ", p.comm.trim());
-        }
-        println!("\n{}", stack);
-    }
+    display(&proc_hash);
 }
