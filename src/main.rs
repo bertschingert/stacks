@@ -8,9 +8,9 @@ struct Options {
 }
 
 fn usage() {
-    eprintln!("Usage: stacks [ku]");
+    eprintln!("Usage: stacks [ku] [t PID...]");
     eprintln!("         k: only include kernel threads");
-    eprintln!("         t: only parse threads of given process");
+    eprintln!("         t PID...: only parse threads of given processes");
     eprintln!("         u: only include user threads");
 }
 
