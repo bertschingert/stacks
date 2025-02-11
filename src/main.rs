@@ -97,17 +97,14 @@ struct ProcEntry {
 }
 
 fn read_proc_data(path: &path::Path, file: &str) -> Result<String, std::io::Error> {
-    // TODO: switch to inspect_err() once on a new enough rustc version
-    fs::read_to_string(path.join(file)).map_err(|e| {
+    fs::read_to_string(path.join(file)).inspect_err(|e| {
         eprintln!("Could not read {}: {}", path.join(file).display(), e);
-        e
     })
 }
 
 fn get_proc_ent(options: &Options, path: &path::Path) -> Option<ProcEntry> {
-    let pid: usize = match path.file_name().unwrap().to_str().unwrap().parse() {
-        Err(_) => return None,
-        Ok(p) => p,
+    let Ok(pid) = path.file_name().unwrap().to_str().unwrap().parse() else {
+        return None;
     };
 
     let stat: ProcStat = read_proc_data(path, "stat").ok()?.parse().ok()?;
@@ -166,12 +163,25 @@ fn process_proc_path(
     path: &path::Path,
     hmap: &mut HashMap<String, Vec<Rc<ProcEntry>>>,
 ) {
-    for entry in fs::read_dir(path).unwrap() {
-        let entry = entry.unwrap();
+    let ents = match fs::read_dir(path) {
+        Ok(ents) => ents,
+        Err(e) => {
+            eprintln!("Could not read {:?}: {e}", path.display());
+            return;
+        }
+    };
 
-        let proc_ent = match get_proc_ent(&options, &entry.path()) {
-            None => continue,
-            Some(p) => p,
+    for entry in ents {
+        let entry = match entry {
+            Ok(ent) => ent,
+            Err(e) => {
+                eprintln!("{e}");
+                continue;
+            }
+        };
+
+        let Some(proc_ent) = get_proc_ent(&options, &entry.path()) else {
+            continue;
         };
 
         let proc_ent = Rc::new(proc_ent);
