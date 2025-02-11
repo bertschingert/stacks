@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path, rc::Rc};
+use std::{collections::HashMap, fs, path};
 
 struct Options {
     include_kernel: bool,
@@ -96,6 +96,8 @@ struct ProcEntry {
     stack: String,
 }
 
+type ProcHash = HashMap<String, Vec<ProcEntry>>;
+
 fn read_proc_data(path: &path::Path, file: &str) -> Result<String, std::io::Error> {
     fs::read_to_string(path.join(file)).inspect_err(|e| {
         eprintln!("Could not read {}: {}", path.join(file).display(), e);
@@ -124,7 +126,7 @@ fn get_proc_ent(options: &Options, path: &path::Path) -> Option<ProcEntry> {
     Some(ProcEntry { pid, comm, stack })
 }
 
-fn display_proc_names(procs: &[Rc<ProcEntry>]) -> String {
+fn display_proc_names(procs: &[ProcEntry]) -> String {
     let mut pid_hash: HashMap<String, Vec<usize>> = HashMap::new();
 
     for proc in procs.iter() {
@@ -147,7 +149,7 @@ fn display_proc_names(procs: &[Rc<ProcEntry>]) -> String {
     s
 }
 
-fn display(p: &HashMap<String, Vec<Rc<ProcEntry>>>) {
+fn display(p: &ProcHash) {
     let mut proc_vec: Vec<_> = p.iter().collect();
     proc_vec.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
 
@@ -158,11 +160,7 @@ fn display(p: &HashMap<String, Vec<Rc<ProcEntry>>>) {
     }
 }
 
-fn process_proc_path(
-    options: &Options,
-    path: &path::Path,
-    hmap: &mut HashMap<String, Vec<Rc<ProcEntry>>>,
-) {
+fn process_proc_path(options: &Options, path: &path::Path, hmap: &mut ProcHash) {
     let ents = match fs::read_dir(path) {
         Ok(ents) => ents,
         Err(e) => {
@@ -184,11 +182,15 @@ fn process_proc_path(
             continue;
         };
 
-        let proc_ent = Rc::new(proc_ent);
-
-        hmap.entry(proc_ent.stack.clone())
-            .and_modify(|v| v.push(Rc::clone(&proc_ent)))
-            .or_insert(vec![Rc::clone(&proc_ent)]);
+        use std::collections::hash_map::Entry;
+        match hmap.entry(proc_ent.stack.clone()) {
+            Entry::Occupied(mut ent) => {
+                ent.get_mut().push(proc_ent);
+            }
+            Entry::Vacant(ent) => {
+                ent.insert(vec![proc_ent]);
+            }
+        };
     }
 }
 
@@ -205,7 +207,7 @@ fn main() {
         proc_path_bases.push(String::from("/proc"));
     }
 
-    let mut proc_hash: HashMap<String, Vec<Rc<ProcEntry>>> = HashMap::new();
+    let mut proc_hash: ProcHash = HashMap::new();
 
     for path in proc_path_bases {
         let proc_path = path::Path::new(&path);
