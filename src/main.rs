@@ -39,7 +39,7 @@ impl Options {
                                 usage();
                                 std::process::exit(1);
                             }
-                        },
+                        }
                         'u' => self.include_kernel = false,
                         _ => {
                             usage();
@@ -161,9 +161,11 @@ fn display(p: &HashMap<String, Vec<Rc<ProcEntry>>>) {
     }
 }
 
-fn process_proc_path(options: &Options,
-                    path: &path::Path, hmap: &mut HashMap<String,
-                    Vec<Rc<ProcEntry>>>) {
+fn process_proc_path(
+    options: &Options,
+    path: &path::Path,
+    hmap: &mut HashMap<String, Vec<Rc<ProcEntry>>>,
+) {
     for entry in fs::read_dir(path).unwrap() {
         let entry = entry.unwrap();
 
@@ -174,8 +176,7 @@ fn process_proc_path(options: &Options,
 
         let proc_ent = Rc::new(proc_ent);
 
-        hmap
-            .entry(proc_ent.stack.clone())
+        hmap.entry(proc_ent.stack.clone())
             .and_modify(|v| v.push(Rc::clone(&proc_ent)))
             .or_insert(vec![Rc::clone(&proc_ent)]);
     }
